@@ -73,9 +73,9 @@ int main(int argc, char** argv)
 
 		char welcomeMessage[4096] = "HELO anas \r\n";
 		send(client_sock, welcomeMessage, strlen(welcomeMessage), 0);
-		
-		int recieved = 1;
-		recieved = recv(client_sock, &recvMessage, 4096, 0);
+		printf("%s", welcomeMessage);
+
+		recv(client_sock, &recvMessage, 4096, 0);
 		printf("%s", recvMessage);
 		                
 		fseek(newFile, 0, SEEK_SET);
@@ -91,7 +91,7 @@ int main(int argc, char** argv)
 				char* emailAddress = strchr(nextLine, '<');	
 				strcat(mailFrom, emailAddress);
 				send(client_sock, mailFrom, strlen(mailFrom), 0);
-				printf("%s\n", mailFrom);
+				printf("%s", mailFrom);
 				j++;
 				recv(client_sock, &recvMessage, 4096, 0);
                                 printf("%s",recvMessage);
@@ -101,7 +101,7 @@ int main(int argc, char** argv)
 				char* emailAddressTo = strchr(nextLine, '<');
 				strcat(rcptTo, emailAddressTo);
 				send(client_sock, rcptTo, strlen(rcptTo), 0);
-                                printf("%s\n", rcptTo);
+                                printf("%s", rcptTo);
                                 j++;
 				recv(client_sock, &recvMessage, 4096, 0);
                                 printf("%s",recvMessage);
@@ -113,18 +113,19 @@ int main(int argc, char** argv)
 				j++;
 				recv(client_sock, &recvMessage, 4096, 0);
                                 printf("%s",recvMessage);
-				printf("%s\n", nextLine);
+				printf("%s", nextLine);
                                 send(client_sock, nextLine, strlen(nextLine), 0);
 			}
 			else if(j > 3)
 			{
 				j++;
-				printf("%s\n", nextLine);
+				printf("%s", nextLine);
 				send(client_sock, nextLine, strlen(nextLine), 0);
 			}
 			if(strstr(recvMessage, "450") != NULL)
 			{
-				sleep(61000);		
+				printf("Address was graylisted. Try again later.\n");
+				exit(1);		
 			}
 		}
 		send(client_sock, "\r\n.\r\n", strlen("\r\n.\r\n"), 0);
