@@ -128,6 +128,7 @@ int main(int argc, char** argv)
 				exit(1);		
 			}
 		}
+		memset(recvMessage, 0, 4096);
 		send(client_sock, "\r\n.\r\n", strlen("\r\n.\r\n"), 0);
 		recv(client_sock, &recvMessage, 4096, 0);
 		printf("%s", recvMessage);
@@ -138,6 +139,7 @@ int main(int argc, char** argv)
 		fclose(requestFile);
 		fclose(newFile);
 		fclose(hostFile);
+		close(client_sock);
 		i++;
 		printf("Finished file: %s\n", nextFile);
 	}
