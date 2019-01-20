@@ -14,35 +14,39 @@
 int main(int argc, char** argv)
 {
 
-	char command[4096];
+	char command[999];
 	int i = 1;
 	while(argc - i > 0)
 	{	
-		memset(command, 0, 4096);
+		memset(command, 0, 999);
 		strcpy(command, "host -t MX ");
-        	char* nextFile = strtok(argv[i], " \n");
+        	
+		char* nextFile = strtok(argv[i], " \n");
 		printf("Starting File: %s\n", nextFile);
-		
+				
 		FILE* newFile = fopen(nextFile, "r");
-                char newLine[4096];
-                memset(newLine, 0, 4096);
-                fgets(newLine, 4096, newFile);
-                fgets(newLine, 4096, newFile);
-                
+                char newLine[999];
+                memset(newLine, 0, 999);
+               
+		fgets(newLine, 999, newFile);
+                fgets(newLine, 999, newFile);
+		
 		//get part after @
 		char * address = strstr(newLine, "@");
 		address = strtok(address, ">");	
 		strcat(command, ++address);
+		
 				
 		FILE* requestFile = popen(command, "r");
-		fgets(newLine, 4096, requestFile);
+		fgets(newLine, 999, requestFile);
 		address = strrchr(address, ' ');
 		address++;
 		address[strlen(address) - 2] = ' ';
-							
-		int retval = -1;
-		FILE* hostFile = popen("host mailvm.cs.uic.edu", "r");
-		fgets(newLine, 4096, hostFile);
+		
+		char command2[999] = "host ";
+		strcat(command2, address);
+		FILE* hostFile = popen(command2, "r");
+		fgets(newLine, 999, hostFile);
 		char* IPAdress = strstr(newLine, "address");
 		IPAdress = strstr(IPAdress, " ");
 		IPAdress++;
@@ -50,7 +54,7 @@ int main(int argc, char** argv)
                 struct sockaddr_in addr;   // internet socket address data structure
    	 	addr.sin_family = AF_INET;
     		addr.sin_port = htons(25); // byte order is significant
-		addr.sin_addr.s_addr = inet_addr(IPAdress); // listen to all interfaces
+		addr.sin_addr.s_addr = inet_addr(IPAdress); 
 		
 		int client_sock = socket(AF_INET, SOCK_STREAM, 0);
 		if(client_sock < 0) {
@@ -66,55 +70,70 @@ int main(int argc, char** argv)
 		}
 		
 
-		char recvMessage[4096];
-		memset(recvMessage, 0, 4096);
-		recv(client_sock, &recvMessage, 4096, 0); 
+		char recvMessage[999];
+		memset(recvMessage, 0, sizeof recvMessage);
+		recv(client_sock, &recvMessage, 999, 0); 
 		printf("%s\n", recvMessage);
 
-		char welcomeMessage[4096] = "HELO anas \r\n";
+		char welcomeMessage[999] = "HELO anas \r\n";
 		send(client_sock, welcomeMessage, strlen(welcomeMessage), 0);
 		printf("%s", welcomeMessage);
-
-		recv(client_sock, &recvMessage, 4096, 0);
+		
+		memset(recvMessage, 0, sizeof recvMessage);
+		recv(client_sock, &recvMessage, 999, 0);
 		printf("%s", recvMessage);
-		                
+		
+		if(strstr(recvMessage, "501") != NULL)
+                {
+                        printf("Invalid domain. Try again\n");
+                	exit(1);
+                } 
+		
 		fseek(newFile, 0, SEEK_SET);
-		char nextLine[4096];
-		char mailFrom[4096] = "MAIL FROM:";
-		char rcptTo[4096] = "RCPT TO:";
-		memset(nextLine, 0, 4069);
+		char nextLine[999];
+		char mailFrom[999] = "MAIL FROM:";
+		char rcptTo[999] = "RCPT TO:";
+		char saveForLater[999];
+		memset(nextLine, 0, 999);
 		int j = 1;
-		while(fgets(nextLine, 4096, newFile) != NULL)
+		while(fgets(nextLine, 999, newFile) != NULL)
 		{
 			if(j == 1)
 			{
+				strcpy(saveForLater, nextLine);
 				char* emailAddress = strchr(nextLine, '<');	
 				strcat(mailFrom, emailAddress);
-				send(client_sock, mailFrom, strlen(mailFrom), 0);
+				mailFrom[strlen(mailFrom) - 1] = '\r';
+				mailFrom[strlen(mailFrom)] = '\n';
 				printf("%s", mailFrom);
+				send(client_sock, mailFrom, strlen(mailFrom), 0);
 				j++;
-				recv(client_sock, &recvMessage, 4096, 0);
+				recv(client_sock, &recvMessage, 999, 0);
                                 printf("%s",recvMessage);
 			}
 			else if(j == 2)
 			{
 				char* emailAddressTo = strchr(nextLine, '<');
 				strcat(rcptTo, emailAddressTo);
+				rcptTo[strlen(rcptTo) - 1] = '\r';
+                                rcptTo[strlen(rcptTo)] = '\n';
+				printf("%s", rcptTo);
 				send(client_sock, rcptTo, strlen(rcptTo), 0);
-                                printf("%s", rcptTo);
                                 j++;
-				recv(client_sock, &recvMessage, 4096, 0);
+				recv(client_sock, &recvMessage, 999, 0);
                                 printf("%s",recvMessage);
 			}		
 			else if(j == 3)
 			{
+				printf("data\n");
 				send(client_sock, "data \r\n", strlen("data \r\n"), 0);
-                                printf("data\n");
+                                printf("%s", saveForLater);
+				send(client_sock, saveForLater, strlen(saveForLater), 0);
 				j++;
-				recv(client_sock, &recvMessage, 4096, 0);
+				recv(client_sock, &recvMessage, 999, 0);
                                 printf("%s",recvMessage);
-				printf("%s", nextLine);
-                                send(client_sock, nextLine, strlen(nextLine), 0);
+				//printf("%s", nextLine);
+                                //send(client_sock, nextLine, strlen(nextLine), 0);
 			}
 			else if(j > 3)
 			{
@@ -122,23 +141,28 @@ int main(int argc, char** argv)
 				printf("%s", nextLine);
 				send(client_sock, nextLine, strlen(nextLine), 0);
 			}
+			
 			if(strstr(recvMessage, "450") != NULL)
 			{
 				printf("Address was graylisted. Try again later.\n");
 				exit(1);		
 			}
+			memset(nextLine, 0, sizeof nextLine);
 		}
-		memset(recvMessage, 0, 4096);
+		printf("\r\n.\r\n");
 		send(client_sock, "\r\n.\r\n", strlen("\r\n.\r\n"), 0);
-		recv(client_sock, &recvMessage, 4096, 0);
+		memset(recvMessage, 0, sizeof recvMessage);
+		recv(client_sock, &recvMessage, 999, 0);
 		printf("%s", recvMessage);
+		printf("QUIT \r\n");
 		send(client_sock, "QUIT \r\n", strlen("QUIT \r\n"), 0);
-		recv(client_sock, &recvMessage, 4096, 0);
+		memset(recvMessage, 0, sizeof recvMessage);
+		recv(client_sock, &recvMessage, 999, 0);
 		printf("%s", recvMessage);
 
-		fclose(requestFile);
+		pclose(requestFile);
 		fclose(newFile);
-		fclose(hostFile);
+		pclose(hostFile);
 		close(client_sock);
 		i++;
 		printf("Finished file: %s\n", nextFile);
