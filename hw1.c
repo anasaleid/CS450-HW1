@@ -94,60 +94,86 @@ int main(int argc, char** argv)
 		char mailFrom[999] = "MAIL FROM:";
 		char rcptTo[999] = "RCPT TO:";
 		char saveForLater[999];
+		int error = 0;
 		memset(nextLine, 0, 999);
 		int j = 1;
 		while(fgets(nextLine, 999, newFile) != NULL)
 		{
 			if(j == 1)
 			{
+				//Send the TO line
 				strcpy(saveForLater, nextLine);
 				char* emailAddress = strchr(nextLine, '<');	
 				strcat(mailFrom, emailAddress);
-				mailFrom[strlen(mailFrom) - 1] = '\r';
-				mailFrom[strlen(mailFrom)] = '\n';
 				printf("%s", mailFrom);
 				send(client_sock, mailFrom, strlen(mailFrom), 0);
+				send(client_sock, "\r\n", strlen("\r\n"), 0);
 				j++;
 				recv(client_sock, &recvMessage, 999, 0);
                                 printf("%s",recvMessage);
 			}
 			else if(j == 2)
 			{
+				//SEND the FROM line
 				char* emailAddressTo = strchr(nextLine, '<');
 				strcat(rcptTo, emailAddressTo);
-				rcptTo[strlen(rcptTo) - 1] = '\r';
-                                rcptTo[strlen(rcptTo)] = '\n';
 				printf("%s", rcptTo);
 				send(client_sock, rcptTo, strlen(rcptTo), 0);
-                                j++;
+                                send(client_sock, "\r\n", strlen("\r\n"), 0);
+				j++;
 				recv(client_sock, &recvMessage, 999, 0);
                                 printf("%s",recvMessage);
 			}		
 			else if(j == 3)
 			{
+				//SEND the DATA and FROM Header again
 				printf("data\n");
-				send(client_sock, "data \r\n", strlen("data \r\n"), 0);
-                                printf("%s", saveForLater);
-				send(client_sock, saveForLater, strlen(saveForLater), 0);
-				j++;
+                                send(client_sock, "data \r\n", strlen("data \r\n"), 0);
+                                j++;
 				recv(client_sock, &recvMessage, 999, 0);
                                 printf("%s",recvMessage);
-				//printf("%s", nextLine);
-                                //send(client_sock, nextLine, strlen(nextLine), 0);
+				printf("%s", saveForLater);
+				send(client_sock, saveForLater, strlen(saveForLater), 0);
+                                send(client_sock, "\r\n", strlen("\r\n"), 0);
+                                strcpy(saveForLater, nextLine);
 			}
-			else if(j > 3)
+			else if(j == 4)
 			{
+				//SEND the subject line
+				printf("%s", saveForLater);
+				send(client_sock, saveForLater, strlen(saveForLater), 0);
+                                send(client_sock, "\r\n", strlen("\r\n"), 0);	
 				j++;
-				printf("%s", nextLine);
-				send(client_sock, nextLine, strlen(nextLine), 0);
 			}
-			
+			else
+			{
+				//SEND the rest of the email
+				printf("%s", nextLine);
+                                send(client_sock, nextLine, strlen(nextLine), 0);
+			}
 			if(strstr(recvMessage, "450") != NULL)
 			{
 				printf("Address was graylisted. Try again later.\n");
-				exit(1);		
+				error = 1;
+				break;		
+			}
+			else if(strstr(recvMessage, "550") != NULL || strstr(recvMessage, "421") != NULL)
+			{
+				printf("An error has occurred.\n");
+                                error = 1;
+                                break;
 			}
 			memset(nextLine, 0, sizeof nextLine);
+		}
+		if(error == 1)
+		{
+			pclose(requestFile);
+                	fclose(newFile);
+                	pclose(hostFile);
+                	close(client_sock);
+                	i++;
+                	printf("File: %s had an error. Continuing to the next.\n", nextFile);
+			continue;
 		}
 		printf("\r\n.\r\n");
 		send(client_sock, "\r\n.\r\n", strlen("\r\n.\r\n"), 0);
